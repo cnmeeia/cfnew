@@ -1,0 +1,93 @@
+name: Sync and Deploy
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # Run daily at midnight
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  sync-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Needed to push changes
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Fetch all history for merging
+
+      - name: Configure Git
+        run: |
+          git config --global user.name 'GitHub Actions Bot'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+
+      - name: Sync with Upstream
+        id: sync
+        run: |
+          # --- CONFIGURATION ---
+          # REPLACE THIS WITH THE UPSTREAM REPOSITORY URL
+          UPSTREAM_URL="https://github.com/EXAMPLE_USER/EXAMPLE_REPO.git" 
+          UPSTREAM_BRANCH="main" # Change if upstream uses 'master' or another branch
+          # ---------------------
+
+          if [ "$UPSTREAM_URL" == "https://github.com/EXAMPLE_USER/EXAMPLE_REPO.git" ]; then
+            echo "Error: Upstream URL not configured. Please edit .github/workflows/sync_deploy.yml"
+            exit 1
+          fi
+
+          echo "Adding upstream remote..."
+          git remote add upstream "$UPSTREAM_URL" || git remote set-url upstream "$UPSTREAM_URL"
+          
+          echo "Fetching upstream..."
+          git fetch upstream
+
+          echo "Merging upstream changes..."
+          # Try to merge, favoring the upstream version if there are conflicts (optional, adjust as needed)
+          # Using --no-edit to accept default merge message
+          git merge upstream/"$UPSTREAM_BRANCH" --no-edit || {
+            echo "Merge conflict detected. Please resolve conflicts manually."
+            exit 1
+          }
+
+          echo "Pushing changes to origin..."
+          git push origin HEAD:${{ github.ref }}
+
+      - name: Setup Node.js
+        if: success()
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Generate Wrangler Configuration
+        if: success()
+        run: |
+          cat > wrangler.toml <<EOF
+          name = "cfnew-worker"
+          main = "worker.js"
+          compatibility_date = "2023-10-01"
+          
+          [vars]
+          # Add any environment variables here if needed
+          EOF
+
+      - name: Prepare Worker Script
+        if: success()
+        run: |
+          # Check if obfuscated file exists, otherwise use source
+          if [ -f "少年你相信光吗" ]; then
+            cp "少年你相信光吗" worker.js
+          elif [ -f "明文源吗" ]; then
+            cp "明文源吗" worker.js
+          else
+            echo "Error: No worker script found."
+            exit 1
+          fi
+
+      - name: Deploy to Cloudflare Workers
+        if: success()
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
