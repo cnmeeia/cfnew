@@ -29,46 +29,46 @@ jobs:
           git config --global user.name 'GitHub Actions Bot'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
 
-      - name: Sync with Upstream
-        id: sync
-        run: |
-          # --- CONFIGURATION ---
-          UPSTREAM_URL="${{ secrets.UPSTREAM_URL }}"
-          UPSTREAM_BRANCH="main"
-          # ---------------------
+      # - name: Sync with Upstream
+      #   id: sync
+      #   run: |
+      #     # --- CONFIGURATION ---
+      #     UPSTREAM_URL="${{ secrets.UPSTREAM_URL }}"
+      #     UPSTREAM_BRANCH="main"
+      #     # ---------------------
 
-          if [ -z "$UPSTREAM_URL" ]; then
-            echo "Error: UPSTREAM_URL secret not configured"
-            exit 1
-          fi
+      #     if [ -z "$UPSTREAM_URL" ]; then
+      #       echo "Error: UPSTREAM_URL secret not configured"
+      #       exit 1
+      #     fi
 
-          echo "Adding upstream remote..."
-          git remote add upstream "$UPSTREAM_URL" || git remote set-url upstream "$UPSTREAM_URL"
+      #     echo "Adding upstream remote..."
+      #     git remote add upstream "$UPSTREAM_URL" || git remote set-url upstream "$UPSTREAM_URL"
           
-          echo "Fetching upstream..."
-          git fetch upstream
+      #     echo "Fetching upstream..."
+      #     git fetch upstream
 
-          echo "Checking for changes..."
-          git fetch origin
-          LOCAL_COMMIT=$(git rev-parse HEAD)
-          UPSTREAM_COMMIT=$(git rev-parse upstream/$UPSTREAM_BRANCH)
+      #     echo "Checking for changes..."
+      #     git fetch origin
+      #     LOCAL_COMMIT=$(git rev-parse HEAD)
+      #     UPSTREAM_COMMIT=$(git rev-parse upstream/$UPSTREAM_BRANCH)
 
-          if [ "$LOCAL_COMMIT" = "$UPSTREAM_COMMIT" ] && [ "${{ github.event.inputs.force_deploy }}" != "true" ]; then
-            echo "No changes detected. Skipping deployment."
-            echo "changes_detected=false" >> $GITHUB_OUTPUT
-            exit 0
-          fi
+      #     if [ "$LOCAL_COMMIT" = "$UPSTREAM_COMMIT" ] && [ "${{ github.event.inputs.force_deploy }}" != "true" ]; then
+      #       echo "No changes detected. Skipping deployment."
+      #       echo "changes_detected=false" >> $GITHUB_OUTPUT
+      #       exit 0
+      #     fi
 
-          echo "Changes detected. Merging upstream changes..."
-          git merge upstream/"$UPSTREAM_BRANCH" --no-edit || {
-            echo "Merge conflict detected. Please resolve conflicts manually."
-            exit 1
-          }
+      #     echo "Changes detected. Merging upstream changes..."
+      #     git merge upstream/"$UPSTREAM_BRANCH" --no-edit || {
+      #       echo "Merge conflict detected. Please resolve conflicts manually."
+      #       exit 1
+      #     }
 
-          echo "Pushing changes to origin..."
-          git push origin HEAD:${{ github.ref }}
+      #     echo "Pushing changes to origin..."
+      #     git push origin HEAD:${{ github.ref }}
 
-          echo "changes_detected=true" >> $GITHUB_OUTPUT
+      #     echo "changes_detected=true" >> $GITHUB_OUTPUT
 
       - name: Setup Node.js
         if: steps.sync.outputs.changes_detected == 'true' || github.event.inputs.force_deploy == 'true'
